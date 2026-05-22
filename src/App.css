@@ -1,0 +1,361 @@
+*, *::before, *::after{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: poppins;
+    transition: .2s ease-in-out;
+    -webkit-transition: .2s ease-in-out;
+    -moz-transition: .2s ease-in-out;
+    -ms-transition: .2s ease-in-out;
+    -o-transition: .2s ease-in-out;
+}
+
+html{
+    font-size: 62.5%;
+}
+
+:root{
+    --bg-main:#005675;
+    --popup-bg:#A8E8FF;
+    --popup-button:#005675;
+    --category-bg: #dbf5ff;
+
+
+    --ball:to bottom right, hsl(196, 100%, 63%) 10% ,hsl(196, 100%, 23%);
+    --btn-addition:to bottom right,  #ff7544, #DB3A00;
+    --btn-subtraction:to bottom right, hsl(196, 100%, 63%), hsl(196, 100%, 43%);
+    --btn-division:to bottom right, hsl(115, 100%, 53%), hsl(115, 100%, 43%);
+    --btn-multiplication: to bottom right, hsl(196, 100%, 63%), hsl(316, 100%, 63%);
+    --btn-exponent: to bottom right, hsl(36, 100%, 63%), hsl(36, 100%, 43%);
+
+
+    --gameplay-bg:#FF7544, #DB3A00;
+    --x-fill:#BD0900;
+    --answers-bg:#EA8B69;
+    --answers-border:hsl(16, 95%, 62%);
+    --answer-fill:hsl(16, 100%, 53%);
+    --answers-shadow: #a82d0080;
+    --wrong-answer-popup:hsl(16, 100%, 53%);
+    
+
+    --cta-button: #FFE5DB;
+    --cta-button-text: #751F00;
+    --cta-button-shadow: #0000004d;
+}
+
+body.red{
+    --gameplay-bg:#FF7544, #DB3A00;
+    --x-fill:#BD0900;
+    --answers-bg:#EA8B69;
+    --answers-border:hsl(16, 95%, 62%);
+    --answer-fill:hsl(16, 100%, 53%);
+    --answers-shadow: #a82d0080;
+    --wrong-answer-popup:hsl(16, 100%, 53%);
+}
+
+body.blue{
+    --gameplay-bg:hsl(196, 100%, 63%) ,hsl(196, 100%, 23%);
+    --x-fill:hsl(183, 100%, 27%);
+    --answers-bg:hsl(196, 75%, 66%);
+    --answers-border:hsl(196, 95%, 52%);
+    --answer-fill:hsl(196, 100%, 43%);
+    --answers-shadow: hsla(196, 100%, 33%, 0.502);
+    --wrong-answer-popup:hsl(196, 100%, 43%);
+    
+
+    --cta-button: hsl(197, 100%, 93%);
+    --cta-button-text: hsl(196, 100%, 23%);
+}
+
+body.green{
+    --gameplay-bg: hsl(115, 70%, 53%), hsl(115, 80%, 43%);;
+    --x-fill:hsl(102, 100%, 27%);
+    --answers-bg:hsl(115, 75%, 66%);
+    --answers-border:hsl(115, 95%, 52%);
+    --answer-fill:hsl(115, 100%, 33%);
+    --answers-shadow: hsla(115, 100%, 33%, 0.502);
+    --wrong-answer-popup:hsl(115, 80%, 43%);
+    
+
+    --cta-button: hsl(116, 100%, 93%);
+    --cta-button-text: hsl(115, 100%, 23%);
+}
+
+body.purple{
+    --gameplay-bg: hsl(196, 100%, 63%), hsl(316, 100%, 63%);
+    --x-fill:hsl(196, 100%, 27%);
+    --answers-bg:hsl(316, 75%, 66%);
+    --answers-border:hsl(316, 100%, 52%);
+    --answer-fill:hsl(316, 100%, 43%);
+    --answers-shadow: hsla(316, 100%, 33%, 0.502);
+    --wrong-answer-popup:hsl(316, 90%, 63%);
+    
+
+    --cta-button: hsl(317, 100%, 93%);
+    --cta-button-text: hsl(316, 100%, 23%);
+}
+
+body.orange{
+    --gameplay-bg: hsl(36, 100%, 63%), hsl(36, 100%, 33%);
+    --x-fill:hsl(36, 100%, 27%);
+    --answers-bg:hsl(36, 75%, 66%);
+    --answers-border:hsl(36, 95%, 52%);
+    --answer-fill:hsl(36, 100%, 43%);
+    --answers-shadow: hsla(36, 100%, 33%, 0.502);
+    --wrong-answer-popup:hsl(36, 90%, 63%);
+    
+
+    --cta-button: hsl(36, 100%, 93%);
+    --cta-button-text: hsl(36, 100%, 23%);
+}
+
+@font-face {
+    font-family: poppins;
+    src: url("/src/assets/Poppins-Regular.ttf");
+}
+
+@font-face {
+    font-family: poppins-semiBold;
+    src: url("/src/assets/Poppins-SemiBold.ttf");
+}
+
+@font-face {
+    font-family: poppins-Bold;
+    src: url("./assets/Poppins-Bold.ttf");
+}
+
+*::selection{
+    background-color: var(--cta-button);
+    color:var(--cta-button-text)
+}
+
+/* styling for the welcome page*/
+.home-overlay{
+    background-color: var(--bg-main);
+    height:100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.home-overlay .popup{
+    width: 90vw;
+    max-width: 45rem;
+    background-color: var(--popup-bg);
+    padding: 2rem;
+    border-radius: .7rem;
+    -webkit-border-radius: .7rem;
+    -moz-border-radius: .7rem;
+    -ms-border-radius: .7rem;
+    -o-border-radius: .7rem;
+    box-shadow: 0 .2rem 1rem rgba(0, 0, 0, 0.295);
+}
+
+form h2{
+    text-align: center;
+    font-weight: normal;
+    font-size: 1.7rem;
+    margin: 0 0 3rem 0;
+    font-family: poppins-semiBold;
+}
+
+form input{
+    padding: 1.5rem;
+    max-width: 100%;
+    display: block;
+    margin: auto;
+    border: none;
+    border-radius: 3rem;
+    -webkit-border-radius: 3rem;
+    -moz-border-radius: 3rem;
+    -ms-border-radius: 3rem;
+    -o-border-radius: 3rem;
+    text-align: center;
+}
+
+form input::placeholder{
+    font-size: 1.2rem;
+    text-align: center;
+}
+
+form .validator{
+    font-size: 1.2rem;
+    color: hsl(0, 71%, 32%);
+    text-align: center;
+    margin:1rem 0 0;
+}
+
+form .validator.hidden{
+   visibility: none;
+   opacity: 0;
+   margin: 0;
+   transform: scale(0);
+   -webkit-transform: scale(0);
+   -moz-transform: scale(0);
+   -ms-transform: scale(0);
+   -o-transform: scale(0);
+   height:.1rem;
+}
+
+form button{
+    display: block;
+    margin: 3rem auto 0;
+    padding:1rem 2.7rem;
+    background-color: var(--popup-button);
+    color: white;
+    font-family: poppins-bold;
+    letter-spacing: .4px;
+    font-size: 1.5rem;
+    border:none;
+    border-radius: .5rem;
+    -webkit-border-radius: .5rem;
+    -moz-border-radius: .5rem;
+    -ms-border-radius: .5rem;
+    -o-border-radius: .5rem;
+    box-shadow: 0 .2rem .4rem rgba(0, 0, 0, 0.199);
+}
+
+
+
+/* animations and hover effect*/
+form button:hover{
+    cursor: pointer;
+}
+
+form button:active{
+    transform: translateY(2px);
+    -webkit-transform: translateY(2px);
+    -moz-transform: translateY(2px);
+    -ms-transform: translateY(2px);
+    -o-transform: translateY(2px);
+    box-shadow: none;
+}
+
+/* Floating JSON Data Button */
+.floating-data-btn {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    padding: 1rem 1.8rem;
+    background-color: var(--popup-button);
+    color: white;
+    font-family: poppins-semiBold;
+    font-size: 1.4rem;
+    border: none;
+    border-radius: 3rem;
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    cursor: pointer;
+}
+
+.floating-data-btn:hover {
+    transform: scale(1.1);
+}
+
+.floating-data-btn:active {
+    transform: scale(0.95);
+}
+
+/* Modal Overlay */
+.data-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Modal Box */
+.data-modal {
+    width: 90vw;
+    max-width: 50rem;
+    background-color: var(--popup-bg);
+    padding: 3rem;
+    border-radius: 1rem;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.4);
+    animation: slideUp 0.3s ease-out forwards;
+}
+
+.data-modal h2 {
+    font-family: poppins-semiBold;
+    font-size: 2rem;
+    color: var(--popup-button);
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+/* JSON Code Container */
+.json-container {
+    background-color: #1e1e1e;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 2px solid var(--popup-button);
+    margin-bottom: 2.5rem;
+}
+
+.json-container pre {
+    color: #4af626;
+    font-family: monospace;
+    font-size: 1.3rem;
+    text-align: left;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* Modal Action Buttons */
+.modal-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.modal-actions button {
+    flex: 1;
+    padding: 1rem;
+    background-color: var(--popup-button);
+    color: white;
+    font-family: poppins-semiBold;
+    font-size: 1.4rem;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    box-shadow: 0 0.2rem 0.5rem rgba(0,0,0,0.2);
+}
+
+.modal-actions button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.4rem 0.8rem rgba(0,0,0,0.3);
+}
+
+.modal-actions button:active {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.modal-actions button.close-btn {
+    background-color: #ff5252;
+}
+
+.modal-actions button.close-btn:hover {
+    background-color: #ff3d3d;
+}
+
+/* Keyframes */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
