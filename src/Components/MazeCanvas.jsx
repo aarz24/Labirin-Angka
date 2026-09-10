@@ -1,359 +1,259 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from "react"
+import { canMove, DIRECTIONS, findPath, getExits, sameCell } from "./gameEngine"
+import Icon from "./Icon"
 
-/* ─── constants ─── */
-const GRID   = 11
-const CENTER  = Math.floor(GRID / 2)          // 5
-const SIZE    = 500                             // logical canvas px
-const PAD     = 42
-const CELL    = Math.floor((SIZE - 2 * PAD) / GRID)  // ≈ 37
+const SIZE = 500
+const PAD = 52
 
-const EXITS = [
-  { r: 0,        c: CENTER,    side: 'top',    idx: 0 },
-  { r: CENTER,   c: GRID - 1,  side: 'right',  idx: 1 },
-  { r: GRID - 1, c: CENTER,    side: 'bottom', idx: 2 },
-  { r: CENTER,   c: 0,         side: 'left',   idx: 3 },
-]
+export default function MazeCanvas({
+  grid,
+  question,
+  onAnswer,
+  disabled,
+  hint,
+  resetToken,
+  controlsRef,
+}) {
+  const middle = Math.floor(grid.length / 2)
+  const origin = { r: middle, c: middle }
+  const [trail, setTrail] = useState([origin])
+  const position = useRef(origin)
+  const answered = useRef(false)
+  const dragging = useRef(false)
+  const svg = useRef(null)
+  const player = trail[trail.length - 1]
+  const cellSize = (SIZE - 2 * PAD) / grid.length
+  const exits = getExits(grid.length)
+  const point = (cell) => ({
+    x: PAD + (cell.c + 0.5) * cellSize,
+    y: PAD + (cell.r + 0.5) * cellSize,
+  })
+  const points = (path) => path.map((cell) => `${point(cell).x},${point(cell).y}`).join(" ")
+  const hintPath = hint
+    ? findPath(grid, player, exits[question.answers.indexOf(question.correctAnswer)])
+    : []
 
-/* ─── path finder and validation ─── */
-function findPath(g, sr, sc, tr, tc) {
-  const queue = [[sr, sc, []]]
-  const visited = Array.from({ length: GRID }, () => Array(GRID).fill(false))
-  visited[sr][sc] = true
-
-  while (queue.length > 0) {
-    const [r, c, path] = queue.shift()
-    const currentPath = [...path, { r, c }]
-
-    if (r === tr && c === tc) {
-      return currentPath
-    }
-
-    const cell = g[r][c]
-    if (!cell.top && r > 0 && !visited[r - 1][c]) {
-      visited[r - 1][c] = true
-      queue.push([r - 1, c, currentPath])
-    }
-    if (!cell.right && c < GRID - 1 && !visited[r][c + 1]) {
-      visited[r][c + 1] = true
-      queue.push([r, c + 1, currentPath])
-    }
-    if (!cell.bottom && r < GRID - 1 && !visited[r + 1][c]) {
-      visited[r + 1][c] = true
-      queue.push([r + 1, c, currentPath])
-    }
-    if (!cell.left && c > 0 && !visited[r][c - 1]) {
-      visited[r][c - 1] = true
-      queue.push([r, c - 1, currentPath])
-    }
-  }
-  return null
-}
-
-function isValidMaze(g) {
-  for (let targetIdx = 0; targetIdx < 4; targetIdx++) {
-    const targetExit = EXITS[targetIdx]
-    const path = findPath(g, CENTER, CENTER, targetExit.r, targetExit.c)
-    if (!path) return false
-
-    for (const cell of path) {
-      // Don't count starting point or the exit itself
-      if ((cell.r === CENTER && cell.c === CENTER) || (cell.r === targetExit.r && cell.c === targetExit.c)) {
-        continue
-      }
-      // Check if this intermediate cell is another exit
-      for (let otherIdx = 0; otherIdx < 4; otherIdx++) {
-        if (otherIdx === targetIdx) continue
-        const otherExit = EXITS[otherIdx]
-        if (cell.r === otherExit.r && cell.c === otherExit.c) {
-          return false
-        }
-      }
-    }
-  }
-  return true
-}
-
-/* ─── maze generator (recursive back-tracker) ─── */
-function makeMaze() {
-  while (true) {
-    const g = Array.from({ length: GRID }, () =>
-      Array.from({ length: GRID }, () => ({
-        top: true, right: true, bottom: true, left: true, vis: false,
-      })),
-    )
-
-    const stack = [[CENTER, CENTER]]
-    g[CENTER][CENTER].vis = true
-    const dirs = [
-      [-1, 0, 'top', 'bottom'],
-      [0,  1, 'right', 'left'],
-      [1,  0, 'bottom', 'top'],
-      [0, -1, 'left', 'right'],
-    ]
-
-    while (stack.length) {
-      const [r, c] = stack[stack.length - 1]
-      const nb = []
-      for (const [dr, dc, w, o] of dirs) {
-        const nr = r + dr, nc = c + dc
-        if (nr >= 0 && nr < GRID && nc >= 0 && nc < GRID && !g[nr][nc].vis)
-          nb.push([nr, nc, w, o])
-      }
-      if (!nb.length) { stack.pop(); continue }
-      const [nr, nc, w, o] = nb[Math.floor(Math.random() * nb.length)]
-      g[r][c][w] = false
-      g[nr][nc][o] = false
-      g[nr][nc].vis = true
-      stack.push([nr, nc])
-    }
-
-    // open the four exits
-    g[0][CENTER].top              = false
-    g[CENTER][GRID - 1].right    = false
-    g[GRID - 1][CENTER].bottom   = false
-    g[CENTER][0].left             = false
-
-    if (isValidMaze(g)) {
-      return g
-    }
-  }
-}
-
-/* ─── component ─── */
-export default function MazeCanvas({ answers, correctAnswer, onAnswer, themeColor = '#00e5ff' }) {
-  const cvs        = useRef(null)
-  const maze       = useRef(null)
-  const player     = useRef({ r: CENTER, c: CENTER })
-  const trail      = useRef([{ r: CENTER, c: CENTER }])
-  const dragging   = useRef(false)
-  const answered   = useRef(false)
-  const props      = useRef({ answers, correctAnswer, onAnswer, themeColor })
-  props.current = { answers, correctAnswer, onAnswer, themeColor }
-
-  /* can we step from `a` to `b`? */
-  const ok = useCallback((a, b) => {
-    const m = maze.current
-    if (!m) return false
-    const dr = b.r - a.r, dc = b.c - a.c
-    if (Math.abs(dr) + Math.abs(dc) !== 1) return false
-    if (dr === -1) return !m[a.r][a.c].top
-    if (dr ===  1) return !m[a.r][a.c].bottom
-    if (dc ===  1) return !m[a.r][a.c].right
-    if (dc === -1) return !m[a.r][a.c].left
-    return false
-  }, [])
-
-  /* draw everything onto the canvas */
-  const draw = useCallback(() => {
-    const c = cvs.current, m = maze.current
-    if (!c || !m) return
-    const ctx = c.getContext('2d')
-    const { answers: ans, themeColor: col } = props.current
-    const t = trail.current, p = player.current
-    const MP = CELL * GRID  // maze pixel width
-
-    c.width  = SIZE
-    c.height = SIZE
-
-    ctx.clearRect(0, 0, SIZE, SIZE)
-
-    /* background */
-    ctx.fillStyle = 'rgba(0,0,0,0.35)'
-    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(PAD, PAD, MP, MP, 8); ctx.fill() }
-    else ctx.fillRect(PAD, PAD, MP, MP)
-
-    /* trail */
-    if (t.length > 0) {
-      ctx.save()
-      ctx.strokeStyle = col
-      ctx.lineWidth   = CELL * 0.34
-      ctx.lineCap     = 'round'
-      ctx.lineJoin    = 'round'
-      ctx.globalAlpha = 0.45
-      ctx.shadowColor = col
-      ctx.shadowBlur  = 14
-      ctx.beginPath()
-      t.forEach((cell, i) => {
-        const x = PAD + cell.c * CELL + CELL / 2
-        const y = PAD + cell.r * CELL + CELL / 2
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+  const move = useCallback(
+    (target) => {
+      if (
+        disabled ||
+        answered.current ||
+        document.querySelector("dialog[open]") ||
+        !canMove(grid, position.current, target)
+      )
+        return false
+      position.current = target
+      setTrail((previous) => {
+        const backtrack = previous.findIndex((cell) => sameCell(cell, target))
+        return backtrack >= 0 ? previous.slice(0, backtrack + 1) : [...previous, target]
       })
-      ctx.stroke()
-      ctx.restore()
-    }
-
-    /* walls */
-    ctx.strokeStyle = 'rgba(255,255,255,0.88)'
-    ctx.lineWidth   = 2.5
-    ctx.lineCap     = 'round'
-    for (let r = 0; r < GRID; r++) {
-      for (let cc = 0; cc < GRID; cc++) {
-        const x = PAD + cc * CELL, y = PAD + r * CELL, w = m[r][cc]
-        if (w.top)    { ctx.beginPath(); ctx.moveTo(x, y);          ctx.lineTo(x + CELL, y);          ctx.stroke() }
-        if (w.right)  { ctx.beginPath(); ctx.moveTo(x + CELL, y);   ctx.lineTo(x + CELL, y + CELL);   ctx.stroke() }
-        if (w.bottom) { ctx.beginPath(); ctx.moveTo(x, y + CELL);   ctx.lineTo(x + CELL, y + CELL);   ctx.stroke() }
-        if (w.left)   { ctx.beginPath(); ctx.moveTo(x, y);          ctx.lineTo(x, y + CELL);          ctx.stroke() }
+      const exitIndex = getExits(grid.length).findIndex((exit) => sameCell(exit, target))
+      if (exitIndex >= 0) {
+        answered.current = true
+        onAnswer(question.answers[exitIndex])
       }
-    }
+      return true
+    },
+    [disabled, grid, onAnswer, question.answers],
+  )
 
-    /* player dot */
-    ctx.save()
-    ctx.fillStyle   = col
-    ctx.shadowColor = col
-    ctx.shadowBlur  = 20
-    ctx.beginPath()
-    ctx.arc(PAD + p.c * CELL + CELL / 2, PAD + p.r * CELL + CELL / 2, CELL * 0.28, 0, Math.PI * 2)
-    ctx.fill()
-    ctx.restore()
+  const moveDirection = useCallback(
+    (index) => {
+      const direction = DIRECTIONS[index]
+      move({ r: position.current.r + direction.dr, c: position.current.c + direction.dc })
+    },
+    [move],
+  )
 
-    /* start marker (ring behind player) */
-    ctx.save()
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)'
-    ctx.lineWidth   = 2
-    ctx.beginPath()
-    ctx.arc(PAD + CENTER * CELL + CELL / 2, PAD + CENTER * CELL + CELL / 2, CELL * 0.38, 0, Math.PI * 2)
-    ctx.stroke()
-    ctx.restore()
-
-    /* exit indicators (small glowing dots at each opening) */
-    ctx.save()
-    ctx.fillStyle   = col
-    ctx.globalAlpha = 0.55
-    ctx.shadowColor = col
-    ctx.shadowBlur  = 10
-    for (const e of EXITS) {
-      let ex, ey
-      if (e.side === 'top')    { ex = PAD + e.c * CELL + CELL / 2; ey = PAD }
-      if (e.side === 'right')  { ex = PAD + MP;                      ey = PAD + e.r * CELL + CELL / 2 }
-      if (e.side === 'bottom') { ex = PAD + e.c * CELL + CELL / 2; ey = PAD + MP }
-      if (e.side === 'left')   { ex = PAD;                           ey = PAD + e.r * CELL + CELL / 2 }
-      ctx.beginPath(); ctx.arc(ex, ey, CELL * 0.2, 0, Math.PI * 2); ctx.fill()
-    }
-    ctx.restore()
-
-    /* answer labels outside the maze */
-    ctx.fillStyle    = 'white'
-    ctx.font         = `bold ${Math.max(16, CELL * 0.55)}px poppins-Bold, sans-serif`
-    ctx.textAlign    = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText(String(ans[0]), PAD + CENTER * CELL + CELL / 2, PAD / 2)
-    ctx.fillText(String(ans[1]), PAD + MP + PAD / 2,              PAD + CENTER * CELL + CELL / 2)
-    ctx.fillText(String(ans[2]), PAD + CENTER * CELL + CELL / 2, PAD + MP + PAD / 2)
-    ctx.fillText(String(ans[3]), PAD / 2,                         PAD + CENTER * CELL + CELL / 2)
-
-  }, [])
-
-  /* convert client coords → grid cell */
-  const cell = useCallback((cx, cy) => {
-    const c = cvs.current
-    if (!c) return null
-    const r = c.getBoundingClientRect()
-    const x = (cx - r.left) * (c.width / r.width) - PAD
-    const y = (cy - r.top)  * (c.height / r.height) - PAD
-    const gc = Math.floor(x / CELL), gr = Math.floor(y / CELL)
-    if (gr < 0 || gr >= GRID || gc < 0 || gc >= GRID) return null
-    return { r: gr, c: gc }
-  }, [])
-
-  /* check if a cell is one of the four exits */
-  const exitOf = useCallback((c) => {
-    for (const e of EXITS) if (c.r === e.r && c.c === e.c) return e.idx
-    return -1
-  }, [])
-
-  /* actually move the player to `to`, append trail, check exit */
-  const step = useCallback((to) => {
-    player.current = { r: to.r, c: to.c }
-    trail.current  = [...trail.current, { r: to.r, c: to.c }]
-    const ei = exitOf(to)
-    if (ei >= 0) {
-      answered.current = true
-      draw()
-      setTimeout(() => props.current.onAnswer(props.current.answers[ei]), 350)
-      return
-    }
-    draw()
-  }, [exitOf, draw])
-
-  /* attempt to move the player toward `target` */
-  const move = useCallback((target) => {
-    if (answered.current) return
-    const p = player.current
-    if (target.r === p.r && target.c === p.c) return
-
-    /* backtrack? */
-    const t = trail.current
-    const bi = t.findIndex(c => c.r === target.r && c.c === target.c)
-    if (bi >= 0 && bi < t.length - 1) {
-      trail.current  = t.slice(0, bi + 1)
-      player.current = { r: target.r, c: target.c }
-      draw()
-      return
-    }
-
-    /* direct adjacent */
-    if (ok(p, target) && !t.some(c => c.r === target.r && c.c === target.c)) {
-      step(target)
-      return
-    }
-
-    /* skip-one (fast drag) */
-    const dirs = [[-1,0],[0,1],[1,0],[0,-1]]
-    for (const [dr, dc] of dirs) {
-      const mid = { r: p.r + dr, c: p.c + dc }
-      if (mid.r < 0 || mid.r >= GRID || mid.c < 0 || mid.c >= GRID) continue
-      if (ok(p, mid) && ok(mid, target)
-          && !t.some(c => c.r === mid.r    && c.c === mid.c)
-          && !t.some(c => c.r === target.r && c.c === target.c)) {
-        player.current = { r: mid.r, c: mid.c }
-        trail.current  = [...trail.current, { r: mid.r, c: mid.c }]
-        step(target)
+  useEffect(() => {
+    controlsRef.current = moveDirection
+    const keydown = (event) => {
+      if (
+        event.target instanceof HTMLElement &&
+        ["INPUT", "TEXTAREA", "SELECT"].includes(event.target.tagName)
+      )
         return
+      if (document.querySelector("dialog[open]")) return
+      const key = event.key.toLowerCase()
+      const index = [
+        ["arrowup", "w"],
+        ["arrowright", "d"],
+        ["arrowdown", "s"],
+        ["arrowleft", "a"],
+      ].findIndex((keys) => keys.includes(key))
+      if (index >= 0) {
+        event.preventDefault()
+        moveDirection(index)
       }
     }
-  }, [ok, draw, step])
-
-  /* init / reset when question changes */
-  useEffect(() => {
-    maze.current     = makeMaze()
-    player.current   = { r: CENTER, c: CENTER }
-    trail.current    = [{ r: CENTER, c: CENTER }]
-    dragging.current = false
-    answered.current = false
-    draw()
-  }, [answers, draw])
-
-  /* mouse + touch events */
-  useEffect(() => {
-    const c = cvs.current
-    if (!c) return
-    const start = (x, y) => { dragging.current = true; const cl = cell(x, y); if (cl) move(cl) }
-    const mv    = (x, y) => { if (!dragging.current) return; const cl = cell(x, y); if (cl) move(cl) }
-    const end   = ()      => { dragging.current = false }
-
-    const md = e => start(e.clientX, e.clientY)
-    const mm = e => { e.preventDefault(); mv(e.clientX, e.clientY) }
-    const mu = () => end()
-    const ts = e => { const t = e.touches[0]; start(t.clientX, t.clientY) }
-    const tm = e => { e.preventDefault(); const t = e.touches[0]; mv(t.clientX, t.clientY) }
-    const te = () => end()
-
-    c.addEventListener('mousedown', md)
-    c.addEventListener('mousemove', mm)
-    window.addEventListener('mouseup', mu)
-    c.addEventListener('touchstart', ts, { passive: false })
-    c.addEventListener('touchmove',  tm, { passive: false })
-    c.addEventListener('touchend',   te)
-
+    window.addEventListener("keydown", keydown)
     return () => {
-      c.removeEventListener('mousedown', md)
-      c.removeEventListener('mousemove', mm)
-      window.removeEventListener('mouseup', mu)
-      c.removeEventListener('touchstart', ts)
-      c.removeEventListener('touchmove',  tm)
-      c.removeEventListener('touchend',   te)
+      controlsRef.current = null
+      window.removeEventListener("keydown", keydown)
     }
-  }, [cell, move])
+  }, [controlsRef, moveDirection])
 
-  return <canvas ref={cvs} className="maze-canvas" />
+  useEffect(() => {
+    const start = { r: middle, c: middle }
+    position.current = start
+    setTrail([start])
+    answered.current = false
+    dragging.current = false
+  }, [middle, resetToken])
+
+  const pointerMove = (event) => {
+    const bounds = svg.current.getBoundingClientRect()
+    const target = {
+      c: Math.floor((((event.clientX - bounds.left) * SIZE) / bounds.width - PAD) / cellSize),
+      r: Math.floor((((event.clientY - bounds.top) * SIZE) / bounds.height - PAD) / cellSize),
+    }
+    if (target.c < 0 || target.r < 0 || target.c >= grid.length || target.r >= grid.length) return
+    const from = position.current
+    if (target.r !== from.r && target.c !== from.c) return
+    const dr = Math.sign(target.r - from.r)
+    const dc = Math.sign(target.c - from.c)
+    const distance = Math.abs(target.r - from.r) + Math.abs(target.c - from.c)
+    for (let step = 0; step < distance; step++) {
+      if (!move({ r: position.current.r + dr, c: position.current.c + dc })) break
+    }
+  }
+
+  const walls = []
+  grid.forEach((row, r) =>
+    row.forEach((cell, c) => {
+      const x = PAD + c * cellSize
+      const y = PAD + r * cellSize
+      if (cell.top) walls.push(<line key={`${r}-${c}-t`} x1={x} y1={y} x2={x + cellSize} y2={y} />)
+      if (cell.left) walls.push(<line key={`${r}-${c}-l`} x1={x} y1={y} x2={x} y2={y + cellSize} />)
+      if (r === grid.length - 1 && cell.bottom)
+        walls.push(
+          <line key={`${r}-${c}-b`} x1={x} y1={y + cellSize} x2={x + cellSize} y2={y + cellSize} />,
+        )
+      if (c === grid.length - 1 && cell.right)
+        walls.push(
+          <line key={`${r}-${c}-r`} x1={x + cellSize} y1={y} x2={x + cellSize} y2={y + cellSize} />,
+        )
+    }),
+  )
+  const labels = ["UTARA", "TIMUR", "SELATAN", "BARAT"]
+  const labelPoints = [
+    { x: 250, y: 22 },
+    { x: 476, y: 250 },
+    { x: 250, y: 478 },
+    { x: 24, y: 250 },
+  ]
+
+  return (
+    <>
+      <svg
+        ref={svg}
+        className="maze-svg"
+        viewBox={`0 0 ${SIZE} ${SIZE}`}
+        role="img"
+        tabIndex={0}
+        aria-label={`Labirin. Posisi baris ${player.r + 1}, kolom ${player.c + 1}. Gunakan panah atau WASD. Jawaban utara ${question.answers[0]}, timur ${question.answers[1]}, selatan ${question.answers[2]}, barat ${question.answers[3]}.`}
+        onPointerDown={(event) => {
+          if (event.button !== 0) return
+          svg.current.focus()
+          dragging.current = true
+          svg.current.setPointerCapture(event.pointerId)
+          pointerMove(event)
+        }}
+        onPointerMove={(event) => {
+          if (dragging.current) pointerMove(event)
+        }}
+        onPointerUp={() => {
+          dragging.current = false
+        }}
+        onPointerCancel={() => {
+          dragging.current = false
+        }}
+      >
+        <rect
+          className="maze-floor"
+          x={PAD}
+          y={PAD}
+          width={SIZE - PAD * 2}
+          height={SIZE - PAD * 2}
+          rx="5"
+        />
+        {grid.flatMap((row, r) =>
+          row.map((_, c) => (
+            <circle
+              className="maze-grid-dot"
+              key={`${r}-${c}`}
+              cx={point({ r, c }).x}
+              cy={point({ r, c }).y}
+              r="1.4"
+            />
+          )),
+        )}
+        {exits.map((exit, index) => (
+          <g key={index}>
+            <rect
+              className="maze-exit"
+              x={point(exit).x - cellSize * 0.36}
+              y={point(exit).y - cellSize * 0.36}
+              width={cellSize * 0.72}
+              height={cellSize * 0.72}
+              rx="5"
+            />
+            <text
+              className="maze-exit-text"
+              x={point(exit).x}
+              y={point(exit).y}
+              style={{ fontSize: grid.length > 9 ? 11 : 14 }}
+            >
+              {question.answers[index]}
+            </text>
+            <text className="maze-exit-text" x={labelPoints[index].x} y={labelPoints[index].y}>
+              {question.answers[index]}
+            </text>
+            <text
+              className="maze-exit-label"
+              x={labelPoints[index].x}
+              y={labelPoints[index].y + 18}
+              style={{ fontSize: index % 2 ? 6 : 7 }}
+            >
+              {labels[index]}
+            </text>
+          </g>
+        ))}
+        <polyline className="maze-trail" points={points(trail)} />
+        <g className="maze-wall">{walls}</g>
+        {hint && <polyline className="maze-hint" points={points(hintPath)} />}
+        <circle
+          className="maze-player-halo"
+          cx={point(player).x}
+          cy={point(player).y}
+          r={cellSize * 0.36}
+        />
+        <circle
+          className="maze-player"
+          cx={point(player).x}
+          cy={point(player).y}
+          r={cellSize * 0.16}
+        />
+      </svg>
+      <span className="sr-only" aria-live="polite">
+        Posisi: baris {player.r + 1}, kolom {player.c + 1}. Arah terbuka:{" "}
+        {DIRECTIONS.filter((direction) =>
+          canMove(grid, player, { r: player.r + direction.dr, c: player.c + direction.dc }),
+        )
+          .map((direction) => direction.label)
+          .join(", ")}
+        .
+      </span>
+      <div className="maze-legend">
+        <span>
+          <i className="player-dot" />
+          Kamu di sini
+        </span>
+        <span>
+          <Icon name="flag" size={12} />
+          Temukan gerbang jawaban
+        </span>
+      </div>
+    </>
+  )
 }

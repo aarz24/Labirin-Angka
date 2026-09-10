@@ -1,92 +1,113 @@
-import { useContext, useEffect, useRef, useState, createContext } from "react";
-import bgMusicFile from "../assets/lagu-matematika.mp3";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react"
+import { readProfile, recordRun } from "./gameEngine"
+import music from "../assets/lagu-matematika.mp3"
 
-export const ContextContainer = createContext()
+const GameContext = createContext(null)
 
-const MyContextProvider = ({children}) => {
-    const [name, setName] = useState(()=> localStorage.getItem("math-game-react"))
-    const [globalScore, setGlobalScore] = useState(0)
-    const [globalHighScore, setGlobalHighScore] = useState(0)
-    const [completedLevelName, setCompletedLevelName] = useState("")
-    const bgAudioRef = useRef(null)
-    const shouldPlayRef = useRef(false)
-
-    const playBgMusic = () => {
-        shouldPlayRef.current = true
-        if (!bgAudioRef.current) {
-            bgAudioRef.current = new Audio(bgMusicFile)
-            bgAudioRef.current.loop = true
-            bgAudioRef.current.volume = 0.35
-        }
-        if (bgAudioRef.current.paused) {
-            bgAudioRef.current.play().catch(err => {
-                console.log("Autoplay blocked, will play on user interaction:", err)
-            })
-        }
+export default function MyContextProvider({ children }) {
+  const [profile, setProfile] = useState(() => {
+    try {
+      return readProfile(window.localStorage)
+    } catch {
+      return readProfile({ getItem: () => null })
     }
+  })
+  const [saveError, setSaveError] = useState(false)
+  const audio = useRef(null)
+  const synth = useRef(null)
 
-    const stopBgMusic = () => {
-        shouldPlayRef.current = false
-        if (bgAudioRef.current && !bgAudioRef.current.paused) {
-            bgAudioRef.current.pause()
-        }
+  useEffect(() => {
+    try {
+      localStorage.setItem("labirin-expedition-v1", JSON.stringify(profile))
+      setSaveError(false)
+    } catch {
+      setSaveError(true)
     }
+  }, [profile])
 
-    useEffect(() => {
-        const handleInteraction = () => {
-            if (shouldPlayRef.current && bgAudioRef.current && bgAudioRef.current.paused) {
-                bgAudioRef.current.play().catch(err => {
-                    console.log("Interaction play failed:", err)
-                })
-            }
-        }
-        window.addEventListener("click", handleInteraction)
-        window.addEventListener("keydown", handleInteraction)
+  const playTone = useCallback(
+    (correct = true) => {
+      if (!profile.sound) return
+      try {
+        synth.current ??= new AudioContext()
+        const context = synth.current
+        void context.resume().catch(() => {})
+        const oscillator = context.createOscillator()
+        const gain = context.createGain()
+        oscillator.connect(gain)
+        gain.connect(context.destination)
+        oscillator.type = "sine"
+        oscillator.frequency.setValueAtTime(correct ? 523.25 : 220, context.currentTime)
+        oscillator.frequency.exponentialRampToValueAtTime(
+          correct ? 1046.5 : 110,
+          context.currentTime + 0.18,
+        )
+        gain.gain.setValueAtTime(0.09, context.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.35)
+        oscillator.start()
+        oscillator.stop(context.currentTime + 0.35)
+      } catch {
+        // Audio is optional on browsers without Web Audio support.
+      }
+    },
+    [profile.sound],
+  )
 
-        return () => {
-            window.removeEventListener("click", handleInteraction)
-            window.removeEventListener("keydown", handleInteraction)
-            if (bgAudioRef.current) {
-                bgAudioRef.current.pause()
-                bgAudioRef.current = null
-            }
-        }
-    }, [])
-
-    function setNameFunction(playersName){
-        setName(playersName)
+  const toggleSound = () => {
+    const enabled = !profile.sound
+    setProfile((previous) => ({ ...previous, sound: enabled }))
+    if (enabled) {
+      audio.current ??= new Audio(music)
+      audio.current.loop = true
+      audio.current.volume = 0.13
+      void audio.current.play().catch(() => {})
+    } else {
+      audio.current?.pause()
     }
+  }
 
-    function updateUserHighScore(category, score) {
-        if (!name) return;
-        const usersData = JSON.parse(localStorage.getItem("math-game-users-data") || "[]");
-        let user = usersData.find(u => u.name.toLowerCase() === name.trim().toLowerCase());
-        if (!user) {
-            user = { name: name.trim(), scores: {}, lastScore: null, lastCategory: null, lastPlayedAt: null };
-            usersData.push(user);
-        }
-        // Update high score per category
-        const prevScore = user.scores[category] || 0;
-        if (score > prevScore) {
-            user.scores[category] = score;
-        }
-        // Always update last score info (most recent game played)
-        user.lastScore = score;
-        user.lastCategory = category;
-        user.lastPlayedAt = new Date().toISOString();
-        localStorage.setItem("math-game-users-data", JSON.stringify(usersData));
-        console.log("📊 CURRENT USERS SCORE DATA JSON:", JSON.stringify(usersData, null, 2));
+  useEffect(() => {
+    const resume = () => {
+      if (!profile.sound || document.hidden) return
+      audio.current ??= new Audio(music)
+      audio.current.loop = true
+      audio.current.volume = 0.13
+      void audio.current.play().catch(() => {})
     }
+    const visibility = () => (document.hidden ? audio.current?.pause() : resume())
+    window.addEventListener("pointerdown", resume)
+    window.addEventListener("keydown", resume)
+    document.addEventListener("visibilitychange", visibility)
+    return () => {
+      window.removeEventListener("pointerdown", resume)
+      window.removeEventListener("keydown", resume)
+      document.removeEventListener("visibilitychange", visibility)
+    }
+  }, [profile.sound])
 
-    return(
-        <ContextContainer.Provider value={{name, setNameFunction, globalScore, setGlobalScore, globalHighScore, setGlobalHighScore, completedLevelName, setCompletedLevelName, updateUserHighScore, playBgMusic, stopBgMusic}}>
-            {children}
-        </ContextContainer.Provider>
-    )
+  useEffect(
+    () => () => {
+      audio.current?.pause()
+      void synth.current?.close().catch(() => {})
+    },
+    [],
+  )
+
+  const finishRun = useCallback(
+    (result) => setProfile((previous) => recordRun(previous, result)),
+    [],
+  )
+  const updateProfile = (updates) => setProfile((previous) => ({ ...previous, ...updates }))
+
+  return (
+    <GameContext.Provider
+      value={{ profile, updateProfile, finishRun, toggleSound, playTone, saveError }}
+    >
+      {children}
+    </GameContext.Provider>
+  )
 }
 
-export function useAuth(){
-    return useContext(ContextContainer)
+export function useGame() {
+  return useContext(GameContext)
 }
-
-export default MyContextProvider

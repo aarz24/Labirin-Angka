@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "typecheck": "tsc -p jsconfig.json",
+    "test": "node --test src/Components/gameEngine.test.js",
+    "format": "prettier --write src index.html eslint.config.js jsconfig.json"
   },
   "dependencies": {
     "animejs": "^3.2.1",
@@ -18,9 +22,16 @@
     "scrollreveal": "^4.0.9"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.1",
     "@types/react": "^18.0.15",
     "@types/react-dom": "^18.0.6",
     "@vitejs/plugin-react": "^2.0.0",
+    "eslint": "9.39.1",
+    "eslint-plugin-react": "7.37.5",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "globals": "16.5.0",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3",
     "vite": "^3.0.0"
   }
 }
