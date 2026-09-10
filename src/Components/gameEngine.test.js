@@ -5,6 +5,8 @@ import {
   canMove,
   createQuestion,
   createRun,
+  CRYSTALS_PER_MAZE,
+  dailyStreak,
   dayKey,
   DIFFICULTIES,
   DIRECTIONS,
@@ -13,11 +15,16 @@ import {
   generateMaze,
   getExits,
   isUnlocked,
+  longestDailyStreak,
+  placeCrystals,
+  rankForXp,
+  RANKS,
   readProfile,
   REALMS,
   recordRun,
   sameCell,
   seededRandom,
+  shareText,
   starsForScore,
 } from "./gameEngine.js"
 
@@ -67,6 +74,28 @@ test("all cells are connected, walls reciprocal, and every exit is a leaf", () =
       }
     }
   }
+})
+
+test("crystals sit in dead ends away from the start and every exit, deterministically", () => {
+  for (const size of [7, 9, 11]) {
+    for (let seed = 0; seed < 20; seed++) {
+      const grid = generateMaze(size, seededRandom(`${size}-${seed}`))
+      const crystals = placeCrystals(grid, seededRandom(`crystal-${seed}`))
+      assert.equal(crystals.length, CRYSTALS_PER_MAZE)
+      assert.equal(new Set(crystals.map((cell) => `${cell.r},${cell.c}`)).size, crystals.length)
+      const middle = Math.floor(size / 2)
+      for (const cell of crystals) {
+        assert.ok(!sameCell(cell, { r: middle, c: middle }))
+        assert.ok(!getExits(size).some((exit) => sameCell(exit, cell)))
+        assert.equal(
+          DIRECTIONS.filter((direction) => !grid[cell.r][cell.c][direction.wall]).length,
+          1,
+        )
+      }
+      assert.deepEqual(crystals, placeCrystals(grid, seededRandom(`crystal-${seed}`)))
+    }
+  }
+  assert.ok(createRun("addition", "relaxed", "seed").every((round) => round.crystals.length === 3))
 })
 
 test("movement cannot jump walls, teleport, or leave the board", () => {
@@ -128,6 +157,8 @@ function result(overrides = {}) {
     seconds: 80,
     hints: 0,
     bestStreak: 5,
+    crystals: 0,
+    rounds: [true, true, true, true, true],
     daily: false,
     date: "2026-09-10",
     xp: 0,
@@ -172,6 +203,53 @@ test("XP respects difficulty and hints, never turns negative, and daily reward i
   const wrong = recordRun(emptyProfile(), result({ score: 0, hints: 5, bestStreak: 0 }))
   assert.equal(wrong.xp, 0)
   assert.equal(wrong.realms.addition.stars, 0)
+  const shiny = recordRun(emptyProfile(), result({ crystals: 4, difficulty: "expert" }))
+  assert.equal(shiny.xp, (100 + 25 + 12) * 2)
+  assert.equal(shiny.crystals, 4)
+  assert.equal(shiny.fogPerfect, true)
+  assert.equal(recordRun(emptyProfile(), result({ crystals: 4 })).fogPerfect, false)
+})
+
+test("ranks advance with XP and report progress toward the next title", () => {
+  assert.deepEqual(rankForXp(0), { level: 1, name: "Pemula", current: 0, next: 200, progress: 0 })
+  assert.equal(rankForXp(199).level, 1)
+  assert.equal(rankForXp(200).name, "Penjelajah")
+  assert.equal(rankForXp(400).progress, 0.5)
+  const top = rankForXp(1e9)
+  assert.equal(top.level, RANKS.length)
+  assert.equal(top.next, null)
+  assert.equal(top.progress, 1)
+  assert.equal(rankForXp(NaN).level, 1)
+  assert.equal(rankForXp(-50).level, 1)
+})
+
+test("daily streaks count consecutive UTC dates and survive a missed today", () => {
+  const dates = ["2026-09-06", "2026-09-08", "2026-09-09", "2026-09-10"]
+  assert.equal(dailyStreak(dates, "2026-09-10"), 3)
+  assert.equal(dailyStreak(dates, "2026-09-11"), 3)
+  assert.equal(dailyStreak(dates, "2026-09-12"), 0)
+  assert.equal(dailyStreak([], "2026-09-12"), 0)
+  assert.equal(longestDailyStreak(dates), 3)
+  assert.equal(longestDailyStreak(["2026-12-31", "2027-01-01"]), 2)
+  assert.equal(longestDailyStreak([]), 0)
+  const profile = { ...emptyProfile(), dailyDates: dates }
+  assert.ok(achievements(profile).find((badge) => badge.id === "streak").unlocked)
+})
+
+test("share text summarises a run in three lines with one square per gate", () => {
+  const text = shareText({
+    ...result({ score: 80, rounds: [true, true, false, true, true], crystals: 2, xp: 120 }),
+    seconds: 151,
+  })
+  const lines = text.split("\n")
+  assert.equal(lines.length, 3)
+  assert.equal(lines[0], "Labirin Angka · Hutan Awal · Santai")
+  assert.equal(lines[1], "🟩🟩🟥🟩🟩 80/100 ⭐⭐")
+  assert.equal(lines[2], "⏱ 2:31 · 💎 2 · +120 XP")
+  assert.match(
+    shareText(result({ daily: true, score: 0, rounds: Array(5).fill(false), xp: 0 })),
+    /^Labirin Angka · Tantangan Harian 2026-09-10\n🟥{5} 0\/100 ·\n/u,
+  )
 })
 
 test("achievements reflect completed play, not just earned XP", () => {
@@ -226,6 +304,15 @@ test("storage loads legacy scores and recovers safely from damaged or unavailabl
   assert.equal(corrupted.difficulty, "relaxed")
   assert.equal(corrupted.lastResult, null)
   assert.deepEqual(corrupted.dailyDates, ["2026-09-10"])
+  const legacyResult = { ...result({ score: 60 }) }
+  delete legacyResult.rounds
+  delete legacyResult.crystals
+  const upgraded = readProfile(
+    storage({ "labirin-expedition-v1": JSON.stringify({ lastResult: legacyResult }) }),
+  )
+  assert.deepEqual(upgraded.lastResult.rounds, [true, true, true, false, false])
+  assert.equal(upgraded.lastResult.crystals, 0)
+  assert.equal(upgraded.crystals, 0)
 })
 
 test("completed results survive reload without awarding a second reward", () => {

@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { useGame } from "../Components/context"
-import { achievements, dayKey, DIFFICULTIES, isUnlocked, REALMS } from "../Components/gameEngine"
+import {
+  achievements,
+  dailyStreak,
+  dayKey,
+  DIFFICULTIES,
+  isUnlocked,
+  REALMS,
+} from "../Components/gameEngine"
 import Level from "../Components/Level"
 import Icon from "../Components/Icon"
 import Modal from "../Components/Modal"
@@ -22,6 +29,7 @@ export default function Home({ section = "adventure", onHelp }) {
     REALMS[0]
   const badges = achievements(profile)
   const todayDone = profile.dailyDates.includes(dayKey(now))
+  const streak = dailyStreak(profile.dailyDates, dayKey(now))
   const tomorrow = new Date(now)
   tomorrow.setUTCHours(24, 0, 0, 0)
   const remaining = Math.floor((tomorrow.getTime() - now.getTime()) / 1000)
@@ -43,6 +51,11 @@ export default function Home({ section = "adventure", onHelp }) {
             <Icon name="star" size={17} />
             <strong>{totalStars}</strong>
             <small>Bintang</small>
+          </span>
+          <span>
+            <Icon name="gem" size={17} />
+            <strong>{profile.crystals}</strong>
+            <small>Kristal</small>
           </span>
           <span>
             <Icon name="fire" size={17} />
@@ -168,6 +181,12 @@ export default function Home({ section = "adventure", onHelp }) {
             <span className="daily-countdown">
               <Icon name="clock" size={16} />
               Tantangan baru dalam {countdown}
+            </span>
+            <span className={`daily-streak ${streak ? "lit" : ""}`}>
+              <Icon name="fire" size={16} />
+              {streak
+                ? `${streak} hari berturut-turut${todayDone ? "" : " · jaga apinya hari ini!"}`
+                : "Mulai rangkaian harianmu hari ini"}
             </span>
           </div>
           <div className="daily-medallion">

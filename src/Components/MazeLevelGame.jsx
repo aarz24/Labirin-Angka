@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from "react-router-dom"
 import { useGame } from "./context"
 import {
   createRun,
+  CRYSTAL_XP,
   dayKey,
   DIFFICULTIES,
   DIRECTIONS,
@@ -40,6 +41,8 @@ export default function MazeLevelGame({ daily = false }) {
   const [resetToken, setResetToken] = useState(0)
   const [streak, setStreak] = useState(0)
   const [bestStreak, setBestStreak] = useState(0)
+  const [crystals, setCrystals] = useState(0)
+  const [sparkle, setSparkle] = useState(0)
   const controls = useRef(null)
   const submitted = useRef(false)
   const finishing = useRef(false)
@@ -124,6 +127,12 @@ export default function MazeLevelGame({ daily = false }) {
     [playTone, round.question.correctAnswer, streak],
   )
 
+  const handleCollect = useCallback(() => {
+    setCrystals((previous) => previous + 1)
+    setSparkle((previous) => previous + 1)
+    playTone("collect")
+  }, [playTone])
+
   function nextRound() {
     if (index === 4) {
       if (finishing.current) return
@@ -136,6 +145,8 @@ export default function MazeLevelGame({ daily = false }) {
         seconds,
         hints,
         bestStreak,
+        crystals,
+        rounds: results,
         daily,
         date: settings.date,
         xp: 0,
@@ -184,6 +195,11 @@ export default function MazeLevelGame({ daily = false }) {
             {score}
             <small>poin</small>
           </span>
+          <span key={sparkle} className={sparkle ? "crystal-metric sparkle" : "crystal-metric"}>
+            <Icon name="gem" size={18} />
+            {crystals}
+            <small>kristal</small>
+          </span>
           <span>
             <Icon name="clock" size={18} />
             {formatTime(seconds)}
@@ -223,7 +239,10 @@ export default function MazeLevelGame({ daily = false }) {
             key={index}
             grid={round.maze}
             question={round.question}
+            crystals={round.crystals}
+            fog={difficulty.fog}
             onAnswer={handleAnswer}
+            onCollect={handleCollect}
             disabled={paused || Boolean(feedback)}
             hint={hint}
             resetToken={resetToken}
@@ -251,9 +270,10 @@ export default function MazeLevelGame({ daily = false }) {
               ))}
             </div>
             <p className="control-note">
-              Dinding menghalangi jalan.
+              Dinding menghalangi jalan. Kamu selalu bisa kembali.
               <br />
-              Kamu selalu bisa kembali.
+              Kristal di jalan buntu bernilai +{CRYSTAL_XP} XP.
+              {difficulty.fog && " Kabut menutupi lorong yang belum dijelajahi."}
             </p>
             <button
               className="button ghost"
@@ -338,6 +358,12 @@ export default function MazeLevelGame({ daily = false }) {
           </div>
           {feedback.correct && (
             <div className="feedback-gain">+20 poin · Teruskan petualanganmu</div>
+          )}
+          {crystals > 0 && (
+            <div className="feedback-gain crystal">
+              <Icon name="gem" size={13} />
+              {crystals} kristal terkumpul · +{crystals * CRYSTAL_XP} XP
+            </div>
           )}
           <button className="button primary full-width" onClick={nextRound}>
             {index === 4 ? "Lihat hasil perjalanan" : "Ke gerbang berikutnya"}

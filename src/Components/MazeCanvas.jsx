@@ -4,11 +4,15 @@ import Icon from "./Icon"
 
 const SIZE = 500
 const PAD = 52
+const cellKey = (cell) => `${cell.r},${cell.c}`
 
 export default function MazeCanvas({
   grid,
   question,
+  crystals = [],
+  fog = false,
   onAnswer,
+  onCollect,
   disabled,
   hint,
   resetToken,
@@ -17,6 +21,9 @@ export default function MazeCanvas({
   const middle = Math.floor(grid.length / 2)
   const origin = { r: middle, c: middle }
   const [trail, setTrail] = useState([origin])
+  const [visited, setVisited] = useState(() => new Set([cellKey(origin)]))
+  const [collected, setCollected] = useState(() => new Set())
+  const collectedRef = useRef(collected)
   const position = useRef(origin)
   const answered = useRef(false)
   const dragging = useRef(false)
@@ -24,6 +31,14 @@ export default function MazeCanvas({
   const player = trail[trail.length - 1]
   const cellSize = (SIZE - 2 * PAD) / grid.length
   const exits = getExits(grid.length)
+  const revealed = new Set()
+  if (fog) {
+    for (const key of visited) {
+      const [r, c] = key.split(",").map(Number)
+      for (let dr = -1; dr <= 1; dr++)
+        for (let dc = -1; dc <= 1; dc++) revealed.add(`${r + dr},${c + dc}`)
+    }
+  }
   const point = (cell) => ({
     x: PAD + (cell.c + 0.5) * cellSize,
     y: PAD + (cell.r + 0.5) * cellSize,
@@ -43,10 +58,17 @@ export default function MazeCanvas({
       )
         return false
       position.current = target
+      const key = cellKey(target)
       setTrail((previous) => {
         const backtrack = previous.findIndex((cell) => sameCell(cell, target))
         return backtrack >= 0 ? previous.slice(0, backtrack + 1) : [...previous, target]
       })
+      setVisited((previous) => (previous.has(key) ? previous : new Set(previous).add(key)))
+      if (crystals.some((cell) => sameCell(cell, target)) && !collectedRef.current.has(key)) {
+        collectedRef.current = new Set(collectedRef.current).add(key)
+        setCollected(collectedRef.current)
+        onCollect?.()
+      }
       const exitIndex = getExits(grid.length).findIndex((exit) => sameCell(exit, target))
       if (exitIndex >= 0) {
         answered.current = true
@@ -54,7 +76,7 @@ export default function MazeCanvas({
       }
       return true
     },
-    [disabled, grid, onAnswer, question.answers],
+    [crystals, disabled, grid, onAnswer, onCollect, question.answers],
   )
 
   const moveDirection = useCallback(
@@ -188,6 +210,22 @@ export default function MazeCanvas({
             />
           )),
         )}
+        {crystals.map((cell) => {
+          const { x, y } = point(cell)
+          const size = cellSize * 0.22
+          return (
+            <g
+              key={cellKey(cell)}
+              className={`maze-crystal ${collected.has(cellKey(cell)) ? "collected" : ""}`}
+              style={{ transformOrigin: `${x}px ${y}px` }}
+            >
+              <polygon
+                points={`${x},${y - size} ${x + size * 0.8},${y} ${x},${y + size} ${x - size * 0.8},${y}`}
+              />
+              <line x1={x - size * 0.8} y1={y} x2={x + size * 0.8} y2={y} />
+            </g>
+          )
+        })}
         {exits.map((exit, index) => (
           <g key={index}>
             <rect
@@ -221,6 +259,26 @@ export default function MazeCanvas({
         ))}
         <polyline className="maze-trail" points={points(trail)} />
         <g className="maze-wall">{walls}</g>
+        {fog && (
+          <g className="maze-fog">
+            {grid.flatMap((row, r) =>
+              row.map((_, c) => {
+                const key = `${r},${c}`
+                if (exits.some((exit) => sameCell(exit, { r, c }))) return null
+                return (
+                  <rect
+                    key={key}
+                    className={revealed.has(key) ? "revealed" : ""}
+                    x={PAD + c * cellSize - 1.5}
+                    y={PAD + r * cellSize - 1.5}
+                    width={cellSize + 3}
+                    height={cellSize + 3}
+                  />
+                )
+              }),
+            )}
+          </g>
+        )}
         {hint && <polyline className="maze-hint" points={points(hintPath)} />}
         <circle
           className="maze-player-halo"
@@ -253,6 +311,18 @@ export default function MazeCanvas({
           <Icon name="flag" size={12} />
           Temukan gerbang jawaban
         </span>
+        {crystals.length > 0 && (
+          <span>
+            <Icon name="gem" size={12} />
+            Kristal {collected.size} / {crystals.length}
+          </span>
+        )}
+        {fog && (
+          <span>
+            <Icon name="cloud" size={12} />
+            Kabut tersingkap saat kamu melangkah
+          </span>
+        )}
       </div>
     </>
   )
