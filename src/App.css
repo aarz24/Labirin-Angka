@@ -1119,15 +1119,48 @@ input {
   border-radius: 50%;
   background: var(--realm-color);
 }
+.game-page {
+  position: relative;
+  isolation: isolate;
+}
+.game-page::before {
+  content: "";
+  position: absolute;
+  inset: -120px 0 auto;
+  height: 520px;
+  background:
+    radial-gradient(ellipse 60% 55% at 50% 0%, var(--realm-color) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 15% 30%, #d4b57a 0%, transparent 70%);
+  opacity: 0.09;
+  pointer-events: none;
+  z-index: -1;
+}
 .game-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border: 1px solid var(--border);
-  background: #172019;
-  border-radius: 9px;
+  border: 1px solid #ffffff16;
+  background:
+    linear-gradient(120deg, #ffffff08, transparent 45%), linear-gradient(180deg, #1b271d, #151f18);
+  border-radius: 12px;
   padding: 16px 22px;
   gap: 14px;
+  box-shadow:
+    0 14px 36px -24px #000,
+    inset 0 1px 0 #ffffff0a;
+}
+.game-realm-title h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.game-realm-title h1::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--realm-color);
+  box-shadow: 0 0 12px var(--realm-color);
 }
 .game-realm-title h1 {
   font-size: 18px;
@@ -1141,15 +1174,25 @@ input {
 }
 .game-metrics {
   display: flex;
-  gap: 30px;
+  gap: 10px;
   align-items: center;
 }
 .game-metrics > span {
-  font-size: 16px;
+  font-size: 15px;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 7px;
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.metric-chip {
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: #ffffff08;
+  border: 1px solid #ffffff10;
+  transition:
+    border-color 0.3s,
+    background 0.3s;
 }
 .game-metrics svg {
   color: var(--gold);
@@ -1157,6 +1200,28 @@ input {
 .game-metrics small {
   font-size: 9px;
   color: var(--muted);
+  font-weight: 500;
+}
+.streak-metric svg {
+  color: #8f9a86;
+}
+.streak-metric.hot {
+  border-color: #f0a75a55;
+  background: linear-gradient(90deg, #f0a75a1c, #f0a75a08);
+}
+.streak-metric.hot svg {
+  color: #f2b46b;
+  filter: drop-shadow(0 0 6px #f2b46b99);
+  animation: flicker 1.2s ease-in-out infinite;
+}
+@keyframes flicker {
+  0%,
+  100% {
+    transform: scale(1) rotate(-2deg);
+  }
+  50% {
+    transform: scale(1.12) rotate(3deg);
+  }
 }
 .game-columns {
   display: grid;
@@ -1166,52 +1231,176 @@ input {
   align-items: start;
 }
 .maze-panel {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: radial-gradient(ellipse at center, #24332333, transparent 80%), #131e17;
-  padding: 22px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #ffffff14;
+  border-radius: 16px;
+  background:
+    radial-gradient(
+      ellipse 70% 45% at 50% 0%,
+      color-mix(in srgb, var(--realm-color) 16%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(ellipse 60% 50% at 50% 100%, #d4b57a10, transparent 70%),
+    linear-gradient(180deg, #16231b, #0f1913);
+  padding: 22px 22px 18px;
+  box-shadow:
+    0 30px 60px -40px #000,
+    inset 0 1px 0 #ffffff0a;
+}
+.maze-panel::before,
+.maze-panel::after {
+  content: "";
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.16;
+  pointer-events: none;
+}
+.maze-panel::before {
+  top: -120px;
+  left: -80px;
+  background: var(--realm-color);
+}
+.maze-panel::after {
+  right: -110px;
+  bottom: -130px;
+  background: #d4b57a;
+}
+.maze-panel > :not(.sr-only) {
+  position: relative;
+}
+.gate-track {
+  list-style: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto 18px;
+  padding: 0;
+  max-width: 320px;
+}
+.gate-track li {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+.gate-track li:last-child {
+  flex: 0;
+}
+.gate-track li::after {
+  content: "";
+  flex: 1;
+  height: 2px;
+  margin: 0 6px;
+  border-radius: 2px;
+  background: #ffffff12;
+  transition: background 0.4s;
+}
+.gate-track li:last-child::after {
+  display: none;
+}
+.gate-track li.correct::after,
+.gate-track li.wrong::after {
+  background: linear-gradient(90deg, #bccf9b, #bccf9b40);
+}
+.gate-track li.wrong::after {
+  background: linear-gradient(90deg, #d59a7d, #d59a7d40);
+}
+.gate-node {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #7c8a78;
+  background: #ffffff08;
+  border: 1px solid #ffffff14;
+  transition:
+    transform 0.3s,
+    background 0.3s,
+    color 0.3s;
+}
+.gate-track .current .gate-node {
+  color: #1f2419;
+  background: var(--gold);
+  border-color: #f2dfae;
+  box-shadow:
+    0 0 0 4px #dcc48822,
+    0 0 18px #dcc48866;
+  transform: scale(1.1);
+}
+.gate-track .correct .gate-node {
+  background: #b9cf97;
+  border-color: #d9e8bf;
+  color: #1f2a1a;
+}
+.gate-track .wrong .gate-node {
+  background: #d59a7d;
+  border-color: #eec0aa;
+  color: #2b1d15;
 }
 .question-heading {
   text-align: center;
+  margin: 0 auto 14px;
+  padding: 16px 18px 14px;
+  max-width: 560px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff08, #ffffff03);
+  border: 1px solid #ffffff10;
+  box-shadow: inset 0 1px 0 #ffffff08;
 }
 .question-heading .eyebrow {
   color: #a1b491;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.question-symbol {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--realm-color) 22%, transparent);
+  color: var(--realm-color);
+  font-size: 10px;
+  letter-spacing: 0;
+  font-weight: 700;
 }
 .question-heading h2 {
-  font-size: 37px;
+  font-size: 42px;
   font-weight: 600;
   letter-spacing: 1px;
-  margin: 6px 0;
+  margin: 6px 0 2px;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 30px color-mix(in srgb, var(--realm-color) 40%, transparent);
+}
+.question-expression {
+  animation: question-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes question-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 .question-heading h2 span {
   color: var(--gold);
+  animation: breathe 2.2s ease-in-out infinite;
+  display: inline-block;
 }
 .question-heading p {
   font-size: 10px;
   color: #94a68a;
-  margin-bottom: 9px;
-}
-.round-dots {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 15px;
-}
-.round-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #354332;
-}
-.round-dot.current {
-  background: var(--gold);
-  box-shadow: 0 0 0 3px #dcc48819;
-}
-.round-dot.correct {
-  background: #afc99e;
-}
-.round-dot.wrong {
-  background: #c98b70;
 }
 .maze-svg {
   width: 100%;
@@ -1220,49 +1409,137 @@ input {
   margin: auto;
   touch-action: none;
   user-select: none;
+  filter: drop-shadow(0 18px 30px #00000066);
+  border-radius: 12px;
+  outline: none;
+}
+.maze-svg:focus-visible {
+  box-shadow: 0 0 0 2px #dcc48866;
 }
 .maze-wall {
-  stroke: #748166;
-  stroke-width: 2.6;
+  stroke: #8c9a7c;
+  stroke-width: 2.4;
   stroke-linecap: round;
 }
-.maze-floor {
-  fill: #1d2b21;
+.maze-wall-shadow {
+  stroke: #0a120d;
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  opacity: 0.75;
 }
-.maze-grid-dot {
-  fill: #a4b49318;
+.maze-floor {
+  stroke: #ffffff10;
+  stroke-width: 1;
+}
+.maze-tiles rect {
+  fill: #e6cf9a;
+  opacity: 0.07;
+  animation: tile-in 0.5s ease;
+}
+@keyframes tile-in {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 0.07;
+  }
+}
+.maze-lantern {
+  pointer-events: none;
+  transition:
+    cx 0.16s ease-out,
+    cy 0.16s ease-out;
 }
 .maze-trail {
   fill: none;
   stroke: #dbc38f;
-  stroke-width: 5;
+  stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
-  opacity: 0.5;
+  opacity: 0.32;
 }
 .maze-hint {
   fill: none;
-  stroke: #c3e09f;
+  stroke: #c9ec9c;
   stroke-width: 3;
   stroke-dasharray: 3 8;
   stroke-linecap: round;
+  filter: drop-shadow(0 0 4px #c9ec9c);
+  animation: hint-march 1.2s linear infinite;
+}
+@keyframes hint-march {
+  to {
+    stroke-dashoffset: -11;
+  }
+}
+.maze-player-pulse {
+  fill: none;
+  stroke: #edd294;
+  stroke-width: 1.2;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: player-pulse 2.4s ease-out infinite;
+  transition:
+    cx 0.16s ease-out,
+    cy 0.16s ease-out;
+}
+@keyframes player-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.7;
+  }
+  70%,
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
 }
 .maze-player-halo {
   fill: #edce8420;
   stroke: #e8cb7f33;
   stroke-width: 1;
   animation: breathe 2s ease-in-out infinite;
+  transition:
+    cx 0.16s ease-out,
+    cy 0.16s ease-out;
 }
 .maze-player {
-  fill: #edd294;
-  stroke: #fff0c9;
-  stroke-width: 2;
-  filter: drop-shadow(0 0 6px #f1d89999);
+  stroke: #fff4d6;
+  stroke-width: 1.4;
+  transition:
+    cx 0.16s ease-out,
+    cy 0.16s ease-out;
 }
 .maze-exit {
-  fill: #2c3b28;
-  stroke: #9eaf7866;
+  fill: url(#maze-gate-gradient);
+  stroke: #a9bb8a88;
   stroke-width: 1;
+}
+.maze-gate-ring {
+  fill: none;
+  stroke: #b7c99a;
+  stroke-width: 1;
+  opacity: 0.25;
+  stroke-dasharray: 3 4;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: gate-spin 14s linear infinite;
+}
+@keyframes gate-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.maze-gate.target .maze-exit {
+  stroke: #d8f2b4;
+  filter: drop-shadow(0 0 8px #c9ec9c);
+}
+.maze-gate.target .maze-gate-ring {
+  stroke: #d8f2b4;
+  opacity: 0.9;
+  stroke-dasharray: none;
+  animation: breathe 1.4s ease-in-out infinite;
 }
 .maze-exit-text {
   font-family: Poppins, sans-serif;
@@ -1301,14 +1578,39 @@ input {
   box-shadow: 0 0 7px #eacf8c66;
 }
 .maze-crystal polygon {
-  fill: #8fd6ff;
+  fill: url(#maze-crystal-gradient);
   stroke: #e6f7ff;
-  stroke-width: 1.2;
-  filter: drop-shadow(0 0 5px #8fd6ffaa);
+  stroke-width: 1;
+}
+.maze-crystal polygon.maze-crystal-facet {
+  fill: #ffffff55;
+  stroke: none;
+}
+.maze-crystal-glow {
+  fill: #8fd6ff;
+  opacity: 0.16;
+  animation: breathe 2.4s ease-in-out infinite;
 }
 .maze-crystal line {
-  stroke: #ffffff99;
+  stroke: #ffffffaa;
+  stroke-width: 0.8;
+}
+.maze-crystal-glint {
+  stroke: #ffffff;
   stroke-width: 1;
+  stroke-linecap: round;
+  fill: none;
+  animation: glint 2.4s ease-in-out infinite;
+}
+@keyframes glint {
+  0%,
+  60%,
+  100% {
+    opacity: 0;
+  }
+  75% {
+    opacity: 1;
+  }
 }
 .maze-crystal {
   animation: crystal-float 2.4s ease-in-out infinite;
@@ -1331,9 +1633,9 @@ input {
   }
 }
 .maze-fog rect {
-  fill: #0c1410;
-  opacity: 0.94;
-  transition: opacity 0.45s ease;
+  fill: #0c1510;
+  opacity: 1;
+  transition: opacity 0.6s ease;
 }
 .maze-fog rect.revealed {
   opacity: 0;
@@ -1390,25 +1692,45 @@ input {
 }
 .d-pad {
   display: grid;
-  grid-template-columns: repeat(3, 39px);
-  grid-template-rows: repeat(2, 37px);
+  grid-template-columns: repeat(3, 42px);
+  grid-template-rows: repeat(2, 40px);
   gap: 5px;
   justify-content: center;
   margin: 16px 0 10px;
 }
 .d-pad button {
-  background: #2a392a;
-  border: 1px solid #a6bc8b26;
-  border-radius: 5px;
+  background: linear-gradient(180deg, #33452f, #26352a);
+  border: 1px solid #a6bc8b30;
+  border-radius: 9px;
   display: grid;
   place-items: center;
+  color: #dfe6cf;
+  box-shadow:
+    0 3px 0 #131c15,
+    inset 0 1px 0 #ffffff12;
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s,
+    background 0.2s;
 }
 .d-pad button:hover {
-  background: #3d4e35;
+  background: linear-gradient(180deg, #3f533a, #2d3e30);
 }
 .d-pad button:active {
   background: #b7c690;
   color: #172018;
+  transform: translateY(2px);
+  box-shadow:
+    0 1px 0 #131c15,
+    inset 0 1px 0 #ffffff12;
+}
+.d-pad button:disabled {
+  opacity: 0.45;
+}
+.game-side-card {
+  background:
+    linear-gradient(135deg, #ffffff06, transparent 50%), linear-gradient(180deg, #1a261d, #16211a);
+  box-shadow: inset 0 1px 0 #ffffff08;
 }
 .d-pad .direction-0 {
   grid-column: 2;
@@ -2305,15 +2627,35 @@ input {
     font-size: 8px;
   }
   .game-metrics {
-    gap: 12px;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
   .game-metrics > span {
-    font-size: 13px;
+    font-size: 12px;
     gap: 4px;
   }
+  .metric-chip {
+    padding: 5px 9px;
+  }
+  .metric-chip small {
+    display: none;
+  }
   .game-metrics svg {
-    width: 15px;
-    height: 15px;
+    width: 14px;
+    height: 14px;
+  }
+  .gate-track {
+    max-width: 240px;
+    margin-bottom: 12px;
+  }
+  .gate-node {
+    width: 24px;
+    height: 24px;
+    font-size: 10px;
+  }
+  .question-heading {
+    padding: 12px 10px;
   }
   .game-columns {
     grid-template-columns: 1fr;

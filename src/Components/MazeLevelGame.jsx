@@ -190,18 +190,23 @@ export default function MazeLevelGame({ daily = false }) {
           </small>
         </div>
         <div className="game-metrics">
-          <span>
-            <Icon name="star" size={18} />
+          <span className="metric-chip">
+            <Icon name="star" size={16} />
             {score}
             <small>poin</small>
           </span>
-          <span key={sparkle} className={sparkle ? "crystal-metric sparkle" : "crystal-metric"}>
-            <Icon name="gem" size={18} />
+          <span key={sparkle} className={`metric-chip crystal-metric ${sparkle ? "sparkle" : ""}`}>
+            <Icon name="gem" size={16} />
             {crystals}
             <small>kristal</small>
           </span>
-          <span>
-            <Icon name="clock" size={18} />
+          <span className={`metric-chip streak-metric ${streak > 1 ? "hot" : ""}`}>
+            <Icon name="fire" size={16} />
+            {streak}
+            <small>beruntun</small>
+          </span>
+          <span className="metric-chip">
+            <Icon name="clock" size={16} />
             {formatTime(seconds)}
           </span>
           <button
@@ -218,22 +223,42 @@ export default function MazeLevelGame({ daily = false }) {
       </div>
       <div className="game-columns">
         <section className="maze-panel">
+          <ol className="gate-track" aria-label={`${results.length} dari 5 gerbang dijawab`}>
+            {[0, 1, 2, 3, 4].map((item) => {
+              const state =
+                item < results.length
+                  ? results[item]
+                    ? "correct"
+                    : "wrong"
+                  : item === index
+                    ? "current"
+                    : ""
+              return (
+                <li key={item} className={state}>
+                  <span className="gate-node">
+                    {state === "correct" ? (
+                      <Icon name="check" size={12} />
+                    ) : state === "wrong" ? (
+                      <Icon name="close" size={12} />
+                    ) : (
+                      item + 1
+                    )}
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
           <div className="question-heading">
             <p className="eyebrow">
+              <span className="question-symbol" aria-hidden="true">
+                {realm.symbol}
+              </span>
               GERBANG {index + 1} DARI 5 · {realm.operation.toUpperCase()}
             </p>
-            <h2>
+            <h2 key={index} className="question-expression">
               {round.question.expression} = <span>?</span>
             </h2>
             <p>Hitung jawabannya, lalu temukan jalan ke gerbangnya.</p>
-          </div>
-          <div className="round-dots" aria-label={`${results.length} dari 5 soal dijawab`}>
-            {[0, 1, 2, 3, 4].map((item) => (
-              <span
-                key={item}
-                className={`round-dot ${item < results.length ? (results[item] ? "correct" : "wrong") : item === index ? "current" : ""}`}
-              />
-            ))}
           </div>
           <MazeCanvas
             key={index}
