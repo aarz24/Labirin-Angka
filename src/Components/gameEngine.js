@@ -47,6 +47,7 @@ export const DIFFICULTIES = [
     name: "Santai",
     size: 7,
     multiplier: 1,
+    fog: false,
     description: "Labirin 7 × 7 · angka kecil",
   },
   {
@@ -54,6 +55,7 @@ export const DIFFICULTIES = [
     name: "Petualang",
     size: 9,
     multiplier: 1.5,
+    fog: false,
     description: "Labirin 9 × 9 · tantangan sedang",
   },
   {
@@ -61,9 +63,36 @@ export const DIFFICULTIES = [
     name: "Ahli",
     size: 11,
     multiplier: 2,
-    description: "Labirin 11 × 11 · angka lebih besar",
+    fog: true,
+    description: "Labirin 11 × 11 · berkabut · angka besar",
   },
 ]
+
+export const CRYSTALS_PER_MAZE = 3
+export const CRYSTAL_XP = 3
+
+export const RANKS = [
+  { name: "Pemula", xp: 0 },
+  { name: "Penjelajah", xp: 200 },
+  { name: "Pemandu Jalur", xp: 600 },
+  { name: "Penjaga Gerbang", xp: 1400 },
+  { name: "Ahli Labirin", xp: 3000 },
+  { name: "Legenda Hutan", xp: 6000 },
+]
+
+export function rankForXp(xp) {
+  const value = Number.isFinite(xp) ? Math.max(0, xp) : 0
+  let index = 0
+  while (index + 1 < RANKS.length && value >= RANKS[index + 1].xp) index++
+  const next = RANKS[index + 1]
+  return {
+    level: index + 1,
+    name: RANKS[index].name,
+    current: RANKS[index].xp,
+    next: next?.xp ?? null,
+    progress: next ? (value - RANKS[index].xp) / (next.xp - RANKS[index].xp) : 1,
+  }
+}
 
 export const DIRECTIONS = [
   { dr: -1, dc: 0, wall: "top", opposite: "bottom", label: "Atas", key: "ArrowUp" },
@@ -142,6 +171,30 @@ export function generateMaze(size = 7, random = Math.random) {
     grid[inside.r][inside.c][direction.wall] = false
   })
   return grid
+}
+
+export function placeCrystals(grid, random = Math.random, count = CRYSTALS_PER_MAZE) {
+  const size = grid.length
+  const middle = Math.floor(size / 2)
+  const exits = getExits(size)
+  const candidates = []
+  grid.forEach((row, r) =>
+    row.forEach((cell, c) => {
+      const openings = DIRECTIONS.filter((direction) => !cell[direction.wall]).length
+      const here = { r, c }
+      if (
+        openings === 1 &&
+        !sameCell(here, { r: middle, c: middle }) &&
+        !exits.some((exit) => sameCell(exit, here))
+      )
+        candidates.push(here)
+    }),
+  )
+  for (let index = candidates.length - 1; index > 0; index--) {
+    const other = Math.floor(random() * (index + 1))
+    ;[candidates[index], candidates[other]] = [candidates[other], candidates[index]]
+  }
+  return candidates.slice(0, count)
 }
 
 export function canMove(grid, from, to) {
@@ -226,19 +279,70 @@ export function createQuestion(category, difficulty = "relaxed", random = Math.r
 export function createRun(category, difficulty, seed, daily = false) {
   const random = seededRandom(seed)
   const size = DIFFICULTIES.find((item) => item.id === difficulty)?.size ?? 7
-  return Array.from({ length: 5 }, (_, index) => ({
-    question: createQuestion(daily ? REALMS[index].id : category, difficulty, random),
-    maze: generateMaze(size, random),
-  }))
+  return Array.from({ length: 5 }, (_, index) => {
+    const maze = generateMaze(size, random)
+    return {
+      question: createQuestion(daily ? REALMS[index].id : category, difficulty, random),
+      maze,
+      crystals: placeCrystals(maze, random),
+    }
+  })
 }
 
 export const starsForScore = (score) => (score >= 100 ? 3 : score >= 80 ? 2 : score >= 60 ? 1 : 0)
 export const formatTime = (seconds) =>
   `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
 
+const DAY_MS = 86400000
+const previousDay = (key) =>
+  new Date(Date.parse(`${key}T00:00:00Z`) - DAY_MS).toISOString().slice(0, 10)
+
+/** Consecutive daily completions ending today or yesterday. */
+export function dailyStreak(dates, today = dayKey()) {
+  const set = new Set(dates)
+  let cursor = set.has(today) ? today : previousDay(today)
+  let streak = 0
+  while (set.has(cursor)) {
+    streak++
+    cursor = previousDay(cursor)
+  }
+  return streak
+}
+
+export function longestDailyStreak(dates) {
+  const set = new Set(dates)
+  let best = 0
+  for (const date of set) {
+    if (set.has(previousDay(date))) continue
+    let length = 0
+    let cursor = date
+    while (set.has(cursor)) {
+      length++
+      cursor = new Date(Date.parse(`${cursor}T00:00:00Z`) + DAY_MS).toISOString().slice(0, 10)
+    }
+    best = Math.max(best, length)
+  }
+  return best
+}
+
+/** @param {RunResult} result */
+export function shareText(result) {
+  const realm = REALMS.find((item) => item.id === result.category)
+  const title = result.daily
+    ? `Tantangan Harian ${result.date}`
+    : `${realm?.name ?? result.category} · ${DIFFICULTIES.find((item) => item.id === result.difficulty)?.name ?? ""}`
+  const squares = result.rounds.map((correct) => (correct ? "🟩" : "🟥")).join("")
+  const stars = "⭐".repeat(starsForScore(result.score)) || "·"
+  return [
+    `Labirin Angka · ${title}`,
+    `${squares} ${result.score}/100 ${stars}`,
+    `⏱ ${formatTime(result.seconds)} · 💎 ${result.crystals} · +${result.xp} XP`,
+  ].join("\n")
+}
+
 /** @typedef {{best: number, stars: number, runs: number}} RealmProgress */
-/** @typedef {{id: string, category: string, difficulty: string, score: number, seconds: number, hints: number, bestStreak: number, daily: boolean, date: string, xp: number}} RunResult */
-/** @typedef {{name: string, xp: number, runs: number, correct: number, perfect: number, bestStreak: number, cleanRun: boolean, dailyDates: string[], completedRuns: string[], realms: Record<string, RealmProgress>, lastResult: RunResult | null, sound: boolean, difficulty: string}} Profile */
+/** @typedef {{id: string, category: string, difficulty: string, score: number, seconds: number, hints: number, bestStreak: number, crystals: number, rounds: boolean[], daily: boolean, date: string, xp: number}} RunResult */
+/** @typedef {{name: string, xp: number, runs: number, correct: number, perfect: number, bestStreak: number, crystals: number, cleanRun: boolean, fogPerfect: boolean, dailyDates: string[], completedRuns: string[], realms: Record<string, RealmProgress>, lastResult: RunResult | null, sound: boolean, difficulty: string}} Profile */
 
 /** @returns {Profile} */
 export function emptyProfile() {
@@ -249,7 +353,9 @@ export function emptyProfile() {
     correct: 0,
     perfect: 0,
     bestStreak: 0,
+    crystals: 0,
     cleanRun: false,
+    fogPerfect: false,
     dailyDates: [],
     completedRuns: [],
     realms: {},
@@ -297,6 +403,15 @@ export function readProfile(storage) {
       result.score <= 100 &&
       typeof result.daily === "boolean" &&
       typeof result.date === "string"
+    const rounds =
+      validResult &&
+      Array.isArray(result.rounds) &&
+      result.rounds.length === 5 &&
+      result.rounds.every((item) => typeof item === "boolean")
+        ? result.rounds
+        : validResult
+          ? Array.from({ length: 5 }, (_, index) => index < result.score / 20)
+          : []
     return {
       ...fallback,
       realms,
@@ -309,14 +424,18 @@ export function readProfile(storage) {
       correct: nonnegative(saved.correct),
       perfect: nonnegative(saved.perfect),
       bestStreak: nonnegative(saved.bestStreak),
+      crystals: nonnegative(saved.crystals),
       cleanRun: saved.cleanRun === true,
+      fogPerfect: saved.fogPerfect === true,
       sound: saved.sound === true,
       dailyDates: stringList(saved.dailyDates),
       completedRuns: stringList(saved.completedRuns).slice(-100),
       difficulty: DIFFICULTIES.some((item) => item.id === saved.difficulty)
         ? saved.difficulty
         : "relaxed",
-      lastResult: validResult ? result : null,
+      lastResult: validResult
+        ? { ...result, rounds, crystals: nonnegative(result.crystals) }
+        : null,
     }
   } catch {
     return fallback
@@ -337,11 +456,15 @@ export function isUnlocked(profile, category) {
 /** @param {Profile} profile @param {RunResult} result @returns {Profile} */
 export function recordRun(profile, result) {
   if (profile.completedRuns.includes(result.id)) return profile
-  const multiplier = DIFFICULTIES.find((item) => item.id === result.difficulty)?.multiplier ?? 1
+  const level = DIFFICULTIES.find((item) => item.id === result.difficulty)
+  const multiplier = level?.multiplier ?? 1
   const dailyRewardAvailable = !profile.dailyDates.includes(result.date)
   const earned = Math.max(
     0,
-    Math.round((result.score + result.bestStreak * 5 - result.hints * 10) * multiplier),
+    Math.round(
+      (result.score + result.bestStreak * 5 + result.crystals * CRYSTAL_XP - result.hints * 10) *
+        multiplier,
+    ),
   )
   const xp = result.daily ? (dailyRewardAvailable ? earned + 50 : 0) : earned
   const previous = profile.realms[result.category] ?? { best: 0, stars: 0, runs: 0 }
@@ -353,7 +476,9 @@ export function recordRun(profile, result) {
     correct: profile.correct + result.score / 20,
     perfect: profile.perfect + (result.score === 100 ? 1 : 0),
     bestStreak: Math.max(profile.bestStreak, result.bestStreak),
+    crystals: profile.crystals + result.crystals,
     cleanRun: profile.cleanRun || (result.score === 100 && result.hints === 0),
+    fogPerfect: profile.fogPerfect || (result.score === 100 && level?.fog === true),
     completedRuns: [...profile.completedRuns, result.id].slice(-100),
     dailyDates:
       result.daily && dailyRewardAvailable
@@ -413,6 +538,27 @@ export function achievements(profile) {
       name: "Tak Kenal Lelah",
       description: "Selesaikan 10 perjalanan.",
       unlocked: profile.runs >= 10,
+    },
+    {
+      id: "crystals",
+      icon: "gem",
+      name: "Pemburu Kristal",
+      description: "Kumpulkan 30 kristal dari jalan buntu labirin.",
+      unlocked: profile.crystals >= 30,
+    },
+    {
+      id: "streak",
+      icon: "fire",
+      name: "Api Fajar",
+      description: "Selesaikan tantangan harian 3 hari berturut-turut.",
+      unlocked: longestDailyStreak(profile.dailyDates) >= 3,
+    },
+    {
+      id: "fog",
+      icon: "cloud",
+      name: "Penembus Kabut",
+      description: "Raih tiga bintang pada kesulitan Ahli.",
+      unlocked: profile.fogPerfect === true,
     },
   ]
 }

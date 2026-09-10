@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from "react-router-dom"
 import { useGame } from "./context"
 import {
   createRun,
+  CRYSTAL_XP,
   dayKey,
   DIFFICULTIES,
   DIRECTIONS,
@@ -40,6 +41,8 @@ export default function MazeLevelGame({ daily = false }) {
   const [resetToken, setResetToken] = useState(0)
   const [streak, setStreak] = useState(0)
   const [bestStreak, setBestStreak] = useState(0)
+  const [crystals, setCrystals] = useState(0)
+  const [sparkle, setSparkle] = useState(0)
   const controls = useRef(null)
   const submitted = useRef(false)
   const finishing = useRef(false)
@@ -124,6 +127,12 @@ export default function MazeLevelGame({ daily = false }) {
     [playTone, round.question.correctAnswer, streak],
   )
 
+  const handleCollect = useCallback(() => {
+    setCrystals((previous) => previous + 1)
+    setSparkle((previous) => previous + 1)
+    playTone("collect")
+  }, [playTone])
+
   function nextRound() {
     if (index === 4) {
       if (finishing.current) return
@@ -136,6 +145,8 @@ export default function MazeLevelGame({ daily = false }) {
         seconds,
         hints,
         bestStreak,
+        crystals,
+        rounds: results,
         daily,
         date: settings.date,
         xp: 0,
@@ -179,13 +190,23 @@ export default function MazeLevelGame({ daily = false }) {
           </small>
         </div>
         <div className="game-metrics">
-          <span>
-            <Icon name="star" size={18} />
+          <span className="metric-chip">
+            <Icon name="star" size={16} />
             {score}
             <small>poin</small>
           </span>
-          <span>
-            <Icon name="clock" size={18} />
+          <span key={sparkle} className={`metric-chip crystal-metric ${sparkle ? "sparkle" : ""}`}>
+            <Icon name="gem" size={16} />
+            {crystals}
+            <small>kristal</small>
+          </span>
+          <span className={`metric-chip streak-metric ${streak > 1 ? "hot" : ""}`}>
+            <Icon name="fire" size={16} />
+            {streak}
+            <small>beruntun</small>
+          </span>
+          <span className="metric-chip">
+            <Icon name="clock" size={16} />
             {formatTime(seconds)}
           </span>
           <button
@@ -202,28 +223,51 @@ export default function MazeLevelGame({ daily = false }) {
       </div>
       <div className="game-columns">
         <section className="maze-panel">
+          <ol className="gate-track" aria-label={`${results.length} dari 5 gerbang dijawab`}>
+            {[0, 1, 2, 3, 4].map((item) => {
+              const state =
+                item < results.length
+                  ? results[item]
+                    ? "correct"
+                    : "wrong"
+                  : item === index
+                    ? "current"
+                    : ""
+              return (
+                <li key={item} className={state}>
+                  <span className="gate-node">
+                    {state === "correct" ? (
+                      <Icon name="check" size={12} />
+                    ) : state === "wrong" ? (
+                      <Icon name="close" size={12} />
+                    ) : (
+                      item + 1
+                    )}
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
           <div className="question-heading">
             <p className="eyebrow">
+              <span className="question-symbol" aria-hidden="true">
+                {realm.symbol}
+              </span>
               GERBANG {index + 1} DARI 5 · {realm.operation.toUpperCase()}
             </p>
-            <h2>
+            <h2 key={index} className="question-expression">
               {round.question.expression} = <span>?</span>
             </h2>
             <p>Hitung jawabannya, lalu temukan jalan ke gerbangnya.</p>
-          </div>
-          <div className="round-dots" aria-label={`${results.length} dari 5 soal dijawab`}>
-            {[0, 1, 2, 3, 4].map((item) => (
-              <span
-                key={item}
-                className={`round-dot ${item < results.length ? (results[item] ? "correct" : "wrong") : item === index ? "current" : ""}`}
-              />
-            ))}
           </div>
           <MazeCanvas
             key={index}
             grid={round.maze}
             question={round.question}
+            crystals={round.crystals}
+            fog={difficulty.fog}
             onAnswer={handleAnswer}
+            onCollect={handleCollect}
             disabled={paused || Boolean(feedback)}
             hint={hint}
             resetToken={resetToken}
@@ -251,9 +295,10 @@ export default function MazeLevelGame({ daily = false }) {
               ))}
             </div>
             <p className="control-note">
-              Dinding menghalangi jalan.
+              Dinding menghalangi jalan. Kamu selalu bisa kembali.
               <br />
-              Kamu selalu bisa kembali.
+              Kristal di jalan buntu bernilai +{CRYSTAL_XP} XP.
+              {difficulty.fog && " Kabut menutupi lorong yang belum dijelajahi."}
             </p>
             <button
               className="button ghost"
@@ -338,6 +383,12 @@ export default function MazeLevelGame({ daily = false }) {
           </div>
           {feedback.correct && (
             <div className="feedback-gain">+20 poin · Teruskan petualanganmu</div>
+          )}
+          {crystals > 0 && (
+            <div className="feedback-gain crystal">
+              <Icon name="gem" size={13} />
+              {crystals} kristal terkumpul · +{crystals * CRYSTAL_XP} XP
+            </div>
           )}
           <button className="button primary full-width" onClick={nextRound}>
             {index === 4 ? "Lihat hasil perjalanan" : "Ke gerbang berikutnya"}

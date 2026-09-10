@@ -26,7 +26,7 @@ export default function MyContextProvider({ children }) {
   }, [profile])
 
   const playTone = useCallback(
-    (correct = true) => {
+    (kind = true) => {
       if (!profile.sound) return
       try {
         synth.current ??= new AudioContext()
@@ -36,16 +36,22 @@ export default function MyContextProvider({ children }) {
         const gain = context.createGain()
         oscillator.connect(gain)
         gain.connect(context.destination)
-        oscillator.type = "sine"
-        oscillator.frequency.setValueAtTime(correct ? 523.25 : 220, context.currentTime)
-        oscillator.frequency.exponentialRampToValueAtTime(
-          correct ? 1046.5 : 110,
-          context.currentTime + 0.18,
+        const collect = kind === "collect"
+        const correct = kind === true
+        oscillator.type = collect ? "triangle" : "sine"
+        oscillator.frequency.setValueAtTime(
+          collect ? 1318.5 : correct ? 523.25 : 220,
+          context.currentTime,
         )
-        gain.gain.setValueAtTime(0.09, context.currentTime)
-        gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.35)
+        oscillator.frequency.exponentialRampToValueAtTime(
+          collect ? 1975.5 : correct ? 1046.5 : 110,
+          context.currentTime + (collect ? 0.08 : 0.18),
+        )
+        const length = collect ? 0.18 : 0.35
+        gain.gain.setValueAtTime(collect ? 0.06 : 0.09, context.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + length)
         oscillator.start()
-        oscillator.stop(context.currentTime + 0.35)
+        oscillator.stop(context.currentTime + length)
       } catch {
         // Audio is optional on browsers without Web Audio support.
       }

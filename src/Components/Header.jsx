@@ -1,10 +1,12 @@
 import { Link, NavLink, useLocation } from "react-router-dom"
 import { useGame } from "./context"
+import { rankForXp } from "./gameEngine"
 import Icon from "./Icon"
 
 export default function Header({ onHelp, onProfile }) {
   const { profile, toggleSound } = useGame()
   const location = useLocation()
+  const rank = rankForXp(profile.xp)
   return (
     <header className="site-header">
       <Link to="/" className="brand" aria-label="Labirin Angka beranda">
@@ -58,7 +60,23 @@ export default function Header({ onHelp, onProfile }) {
           </span>
           <span className="profile-name">
             {profile.name}
-            <small>Level {Math.floor(profile.xp / 250) + 1} · Penjelajah</small>
+            <small>
+              Level {rank.level} · {rank.name}
+            </small>
+            <span
+              className="rank-track"
+              role="progressbar"
+              aria-label={
+                rank.next
+                  ? `${rank.next - profile.xp} XP menuju level berikutnya`
+                  : "Level tertinggi"
+              }
+              aria-valuenow={Math.round(rank.progress * 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              <span style={{ width: `${rank.progress * 100}%` }} />
+            </span>
           </span>
           <Icon name="chevron" size={14} />
         </button>
