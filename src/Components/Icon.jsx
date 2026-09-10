@@ -50,6 +50,16 @@ const paths = {
   reset: <path d="M4 10a8 8 0 1 1 1 8M4 4v6h6" />,
   crown: <path d="m3 6 4 4 5-7 5 7 4-4-2 13H5Zm3 17h12" />,
   mountain: <path d="m2 20 8-16 5 10 3-5 5 11ZM7 10l3 2 3-2" />,
+  gem: <path d="M7 3h10l4 6-9 12L3 9Zm-4 6h18M10 3l-3 6 5 12 5-12-3-6" />,
+  cloud: <path d="M7 18a4 4 0 0 1-.6-7.95A6 6 0 0 1 18 8.5 3.5 3.5 0 0 1 17.5 18Z" />,
+  share: (
+    <>
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
+    </>
+  ),
   user: (
     <>
       <circle cx="12" cy="8" r="4" />

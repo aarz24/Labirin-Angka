@@ -34,12 +34,20 @@ No backend, account, or environment secrets are required.
 - Each expedition has five questions. Correct answers award 20 points.
 - Scores of 60, 80, and 100 award one, two, and three stars. One star unlocks the next world.
 - Santai, Petualang, and Ahli use 7×7, 9×9, and 11×11 mazes, with increasing arithmetic difficulty.
+  Ahli mazes are covered in fog that lifts only around cells you have walked through.
+- Every maze hides three crystals in dead ends. Each collected crystal is worth 3 XP
+  before the difficulty multiplier.
 - There is no time limit. Escape pauses play; hiding the browser tab also pauses.
 - Hints illuminate the correct route. Each hint deducts 10 XP before the difficulty multiplier.
-- XP is `max(0, round((score + bestStreak * 5 - hints * 10) * multiplier))`.
+- XP is `max(0, round((score + bestStreak * 5 + crystals * 3 - hints * 10) * multiplier))`.
+- Total XP determines the explorer rank: Pemula, Penjelajah (200), Pemandu Jalur (600),
+  Penjaga Gerbang (1400), Ahli Labirin (3000), Legenda Hutan (6000).
 - Daily expeditions use a UTC-date seed and fixed Petualang difficulty. They cover
   all five operations; the first completion awards normal XP plus 50 bonus XP.
-  Further attempts that day are practice and award no XP.
+  Further attempts that day are practice and award no XP. Consecutive daily
+  completions build a streak shown on the daily page.
+- The result screen shows a per-gate pattern and can share a three-line summary
+  via the Web Share API or the clipboard.
 - Sound is off initially. Enable it with the header sound button.
 
 ## Persistence and assets
@@ -60,4 +68,5 @@ progression, persistence validation, and achievement rules. The maze generator
 builds a spanning tree while reserving each answer exit as a leaf; reaching one
 exit never requires passing through another. Unit tests check connectivity,
 reciprocal walls, legal movement, exact arithmetic, deterministic daily runs,
-progression, reward deduplication, and corrupt/legacy storage.
+crystal placement, ranks, daily streaks, share text, progression, reward
+deduplication, and corrupt/legacy storage.
